@@ -1,0 +1,114 @@
+
+## Queries
+
+### Membuat Database
+
+```
+CREATE DATABASE "uas_basisdata"  WITH OWNER "komang" ENCODING 'UTF8';
+```
+
+### Tabel Kota
+
+**Membuat Table Kota**
+```
+create table "kota" ("id" serial primary key not null, "nama" varchar(255) not null, "ongkos_kirim" integer not null, "created_at" timestamp(0) without time zone not null, "updated_at" timestamp(0) without time zone not null)
+```
+**Menambahkan Unique Index**
+```
+alter table "kota" add constraint kota_nama_unique unique ("nama")
+```
+
+### Tabel Pelanggan
+
+**Membuat Table Pelanggan**
+```
+create table "pelanggan" ("id" serial primary key not null, "kota_id" integer not null, "email" varchar(255) not null, "nama" varchar(100) not null, "alamat" varchar(255) not null, "no_telp" varchar(20) null, "no_hp" varchar(20) null, "created_at" timestamp(0) without time zone not null, "updated_at" timestamp(0) without time zone not null);
+```
+**Menambahkan Foreign Key Constraint**
+```
+alter table "pelanggan" add constraint pelanggan_kota_id_foreign foreign key ("kota_id") references "kota" ("id");
+```
+**Menambahkan Unique Index**
+```
+alter table "pelanggan" add constraint pelanggan_email_unique unique ("email");
+```
+
+### Tabel Kategori
+
+**Membuat Tabel Kategori**
+```
+create table "kategori" ("id" serial primary key not null, "nama" varchar(255) not null, "created_at" timestamp(0) without time zone not null, "updated_at" timestamp(0) without time zone not null);
+```
+**Menambahkan Unique Index**
+```
+alter table "kategori" add constraint kategori_nama_unique unique ("nama");
+```
+
+### Tabel Barang
+
+**Membuat Tabel Barang**
+```
+create table "barang" ("id" serial primary key not null, "kategori_id" integer not null, "kode" char(5) not null, "nama" varchar(255) not null, "deskripsi" text not null, "harga" integer not null, "berat" double precision not null, "stok" integer not null, "created_at" timestamp(0) without time zone not null, "updated_at" timestamp(0) without time zone not null);
+```
+**Menambahkan Index**
+```
+create index barang_harga_index on "barang" ("harga");
+create index barang_stok_index on "barang" ("stok");
+create index barang_nama_index on "barang" ("nama");
+alter table "barang" add constraint barang_kode_unique unique ("kode");
+```
+**Menambahkan Foreign Key Constraints**
+```
+alter table "barang" add constraint barang_kategori_id_foreign foreign key ("kategori_id") references "kategori" ("id");
+```
+
+### Tabel Pesanan
+
+**Membuat Tabel Pesanan**
+```
+create table "pesanan" ("id" serial primary key not null, "pelanggan_id" integer not null, "tgl" timestamp(0) without time zone not null, "status" varchar(255) not null, "alamat_pengiriman" varchar(255) not null, "kota_id" integer not null, "total_harga" integer not null, "total_transfer" integer not null, "nama_bank" varchar(255) not null, "no_resi" varchar(255) not null, "created_at" timestamp(0) without time zone not null, "updated_at" timestamp(0) without time zone not null);
+```
+**Menambahkan Index**
+```
+create index pesanan_tgl_index on "pesanan" ("tgl");
+create index pesanan_status_index on "pesanan" ("status");
+```
+**Menambahkan Foreign Key Constraints**
+```
+alter table "pesanan" add constraint pesanan_pelanggan_id_foreign foreign key ("pelanggan_id") references "pelanggan" ("id");
+alter table "pesanan" add constraint pesanan_kota_id_foreign foreign key ("kota_id") references "kota" ("id");
+```
+
+### Tabel Pesanan Detail
+
+**Membuat Tabel Pesanan Detail**
+```
+create table "pesanan_detail" ("id" serial primary key not null, "pesanan_id" integer not null, "barang_id" integer not null, "kode_barang" varchar(255) not null, "nama_barang" varchar(255) not null, "berat_barang" varchar(255) not null, "harga_barang" integer not null, "quantity" varchar(255) not null, "total_harga" integer not null, "total_berat" double precision not null, "created_at" timestamp(0) without time zone not null, "updated_at" timestamp(0) without time zone not null);
+```
+**Menambahkan Foreign Key Constraints**
+```
+alter table "pesanan_detail" add constraint pesanan_detail_barang_id_foreign foreign key ("barang_id") references "barang" ("id");
+alter table "pesanan_detail" add constraint pesanan_detail_pesanan_id_foreign foreign key ("pesanan_id") references "pesanan" ("id");
+```
+
+### Contoh Store Procedure
+
+**Deklarasi Summary Pesanan**
+```
+create type pesanan_summary as (id int, tgl timestamp, status varchar, kota varchar, total_harga int4, total_transfer int4, total_berat float8, nama_bank varchar, nama_pelanggan varchar);
+create or replace function GetSummaryPesanan() returns setof pesanan_summary as
+'
+select a.id, a.tgl, a.status, b.nama as kota, a.total_harga, a.total_transfer, (select sum(total_berat) from pesanan_detail where pesanan_id=a.id) as total_berat, a.nama_bank, c.nama as nama_pelanggan from pesanan a inner join kota b on a.kota_id = b.id inner join pelanggan c on a.pelanggan_id = c.id order by a.tgl asc
+'
+language 'plpgsql';
+```
+
+**Eksekusi Summary Pesanan**
+
+```
+select GetSummaryPesanan();
+```
+
+### Contoh Trigger
+
+
